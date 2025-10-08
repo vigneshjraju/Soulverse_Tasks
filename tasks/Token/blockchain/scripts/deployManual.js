@@ -1,4 +1,3 @@
-// scripts/deployManual.js
 const { ethers, upgrades } = require("hardhat");
 require("dotenv").config();
 

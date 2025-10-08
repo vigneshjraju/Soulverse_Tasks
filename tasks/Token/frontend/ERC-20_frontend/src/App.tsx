@@ -21,6 +21,27 @@ function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [recipient, setRecipient] = useState<string>("");
   const [sendAmount, setSendAmount] = useState<string>("");
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  // Fetch transactions involving the user
+  const fetchTransactions = async (userAddress: string, tokenContract: ethers.Contract) => {
+    try {
+      const filterFrom = tokenContract.filters.Transfer(userAddress, null);
+      const filterTo = tokenContract.filters.Transfer(null, userAddress);
+
+      const sentEvents = await tokenContract.queryFilter(filterFrom, -10000);
+      const receivedEvents = await tokenContract.queryFilter(filterTo, -10000);
+
+      // Combine and sort by block number (descending)
+      const allEvents = [...sentEvents, ...receivedEvents].sort(
+        (a, b) => b.blockNumber - a.blockNumber
+      );
+
+      setTransactions(allEvents);
+    } catch (err) {
+      setTransactions([]);
+    }
+  };
 
   // Connect wallet and contract
   const connectWallet = async () => {
@@ -33,17 +54,19 @@ function App() {
       const token = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       setContract(token);
       const bal = await token.balanceOf(userAddress);
-      setBalance(bal.toString());
+      setBalance(ethers.formatUnits(bal, 18));
+      await fetchTransactions(userAddress, token);
     } else {
       alert("Please install MetaMask!");
     }
   };
 
-  // Update balance
-  const updateBalance = async () => {
+  // Update balance and transactions
+  const updateBalanceAndTx = async () => {
     if (contract && account) {
       const bal = await contract.balanceOf(account);
-      setBalance(bal.toString());
+      setBalance(ethers.formatUnits(bal, 18));
+      await fetchTransactions(account, contract);
     }
   };
 
@@ -55,7 +78,7 @@ function App() {
       const tx = await contract.mint(account, ethers.parseUnits("1000", 18));
       await tx.wait();
       alert("Minted 1000 tokens!");
-      updateBalance();
+      await updateBalanceAndTx();
     } catch (err: any) {
       alert("Mint failed: " + err.message);
     }
@@ -70,7 +93,7 @@ function App() {
       const tx = await contract.burn(ethers.parseUnits("100", 18));
       await tx.wait();
       alert("Burned 100 tokens!");
-      updateBalance();
+      await updateBalanceAndTx();
     } catch (err: any) {
       alert("Burn failed: " + err.message);
     }
@@ -85,7 +108,7 @@ function App() {
       const tx = await contract.redeem(ethers.parseUnits("50", 18));
       await tx.wait();
       alert("Redeemed 50 tokens!");
-      updateBalance();
+      await updateBalanceAndTx();
     } catch (err: any) {
       alert("Redeem failed: " + err.message);
     }
@@ -104,7 +127,7 @@ function App() {
       const tx = await contract.transfer(recipient, ethers.parseUnits(sendAmount, 18));
       await tx.wait();
       alert(`Sent ${sendAmount} tokens to ${recipient}`);
-      updateBalance();
+      await updateBalanceAndTx();
     } catch (err: any) {
       alert("Send failed: " + err.message);
     }
@@ -112,32 +135,25 @@ function App() {
   };
 
   return (
-
     <div className="flex h-screen bg-gray-200">
-
-        <Sidebar onConnect={connectWallet} onMint={mint} onBurn={burn} />
-
-        <div className="flex-1 flex flex-col">
-
-            <TopBar account={account} />
-            
-            <Dashboard
-              account={account}
-              balance={balance}
-              recipient={recipient}
-              setRecipient={setRecipient}
-              sendAmount={sendAmount}
-              setSendAmount={setSendAmount}
-              loading={loading}
-              sendTokens={sendTokens}
-              connectWallet={connectWallet}
-              redeem={redeem}
-            />
-
-        </div>
-
+      <Sidebar onConnect={connectWallet} onMint={mint} onBurn={burn} />
+      <div className="flex-1 flex flex-col">
+        <TopBar account={account} />
+        <Dashboard
+          account={account}
+          balance={balance}
+          recipient={recipient}
+          setRecipient={setRecipient}
+          sendAmount={sendAmount}
+          setSendAmount={setSendAmount}
+          loading={loading}
+          sendTokens={sendTokens}
+          connectWallet={connectWallet}
+          redeem={redeem}
+          transactions={transactions}
+        />
+      </div>
     </div>
-
   );
 }
 

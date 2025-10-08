@@ -11,7 +11,7 @@ async function main() {
   const tokenArtifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
   const abi = tokenArtifact.abi;
 
-  // ✅ Explicitly pass network name as fallback
+  // Explicitly pass network name as fallback
   const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_URL, "sepolia");
 
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
